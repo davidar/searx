@@ -15,3 +15,4 @@ setup.cfg
 node_modules/
 
 .tx/
+.node-virtualenv/

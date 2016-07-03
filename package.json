@@ -1,0 +1,22 @@
+{
+  "name": "searx",
+  "version": "0.9.0",
+  "description": "A privacy-respecting, hackable metasearch engine",
+  "main": "index.js",
+  "directories": {
+    "example": "examples",
+    "test": "tests"
+  },
+  "scripts": {
+    "postinstall": "virtualenv-postinstall && sed -i -e \"s/ultrasecretkey/`openssl rand -hex 16`/g\" searx/settings.yml"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/davidar/searx.git"
+  },
+  "license": "AGPL-3.0",
+  "homepage": "https://asciimoo.github.io/searx/",
+  "dependencies": {
+    "virtualenv": "*"
+  }
+}
