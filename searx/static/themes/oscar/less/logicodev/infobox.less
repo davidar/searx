@@ -1,26 +1,15 @@
+#sidebar_results {
+    margin-top: 10px;
+}
+
 .infobox {
-
-    .panel-heading{
-        background-color: @dim-gray;
-
-        .panel-title{
-            font-weight: 700;
-        }
-    }
-
-
-    p{
-        font-family: "DejaVu Serif", Georgia, Cambria, "Times New Roman", Times, serif !important;
-        font-style: italic;
-    }
-
-    .btn{
-        background-color: @green;
+    .btn {
         border: none;
-
-        a{
-            color: white;
-            margin: 5px;
+        display: block;
+        text-align: right;
+    
+        &:before {
+            content: "\2014  ";
         }
     }
 
@@ -33,5 +22,14 @@
     
     .infobox_part:last-child {
         margin-bottom: 0;
+    }
+}
+
+.panel {
+    border: none;
+    box-shadow: 0 0 1em #ddd;
+
+    .panel-heading {
+        border-bottom: none;
     }
 }

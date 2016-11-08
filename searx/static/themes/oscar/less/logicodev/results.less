@@ -1,44 +1,27 @@
-.result_header {
-    margin-top: 6px;
-    margin-bottom: 4px;
-    font-size: 16px;
-
-    .favicon {
-        margin-bottom:-3px;
-    }
-
-    a {
-        color: @black;
-        text-decoration: none;
-
-        &:hover{
-            color: @blue;
-        }
-
-        &:visited{
-            color: @violet;
-        }
-
-        .highlight {
-            background-color: @dim-gray;
-            // Chrome hack: bold is different size than normal
-            // https://stackoverflow.com/questions/20713988/weird-text-alignment-issue-in-css-when-bolded-lucida-sans
-        }
-    }
+.result {
+    margin-top: 1rem;
+    background-color: @middle-gray;
 }
 
 .result-content {
     margin-top: 2px;
     margin-bottom: 0;
     word-wrap: break-word;
-    color: @dark-gray;
-    font-size: 13px;
+    color: @black;
 
-
-    .highlight {
-        font-weight:bold;
+    .highlight, strong {
+        font-style: italic;
+        font-weight: normal !important;
     }
 
+    .result_header {
+        float: right;
+        text-align: right;
+        
+        &:before {
+            content: "\2014  ";
+        }
+    }
 }
 
 .external-link, .external-link a{
@@ -164,4 +147,9 @@
     box-shadow: 0 3px 9px rgba(0, 0, 0, 0.5);
     outline: 0 none;
     position: relative;
+}
+
+.text-info {
+    color: @red !important;
+    margin-left: 1em;
 }

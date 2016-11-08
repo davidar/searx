@@ -44,7 +44,7 @@
                     {% set language_label = _('Search language') %}
                     {% set language_info = _('What language do you prefer for search?') %}
                     {{ preferences_item_header(language_info, language_label, rtl) }}
-                        <select class="form-control" name='language'>
+                        <select name='language'>
                             <option value="all" {% if current_language == 'all' %}selected="selected"{% endif %}>{{ _('Automatic') }}</option>
                             {% for lang_id,lang_name,country_name in language_codes | sort(attribute=1) %}
                             <option value="{{ lang_id }}" {% if lang_id == current_language %}selected="selected"{% endif %}>{{ lang_name }} ({{ country_name }}) - {{ lang_id }}</option>
@@ -55,7 +55,7 @@
                     {% set locale_label = _('Interface language') %}
                     {% set locale_info = _('Change the language of the layout') %}
                     {{ preferences_item_header(locale_info, locale_label, rtl) }}
-                        <select class="form-control" name='locale'>
+                        <select name='locale'>
                             {% for locale_id,locale_name in locales.items() | sort %}
                             <option value="{{ locale_id }}" {% if locale_id == current_locale %}selected="selected"{% endif %}>{{ locale_name }}</option>
                             {% endfor %}
@@ -65,7 +65,7 @@
                     {% set autocomplete_label = _('Autocomplete') %}
                     {% set autocomplete_info = _('Find stuff as you type') %}
                     {{ preferences_item_header(autocomplete_info, autocomplete_label, rtl) }}
-                        <select class="form-control" name="autocomplete">
+                        <select name="autocomplete">
                             <option value=""> - </option>
                             {% for backend in autocomplete_backends %}
                             <option value="{{ backend }}" {% if backend == autocomplete %}selected="selected"{% endif %}>{{ backend }}</option>
@@ -76,7 +76,7 @@
                     {% set image_proxy_label = _('Image proxy') %}
                     {% set image_proxy_info = _('Proxying image results through searx') %}
                     {{ preferences_item_header(image_proxy_info, image_proxy_label, rtl) }}
-                        <select class="form-control" name='image_proxy'>
+                        <select name='image_proxy'>
                             <option value="1" {% if image_proxy  %}selected="selected"{% endif %}>{{ _('Enabled') }}</option>
                             <option value="" {% if not image_proxy %}selected="selected"{% endif %}>{{ _('Disabled')}}</option>
                         </select>
@@ -85,7 +85,7 @@
                     {% set method_label = _('Method') %}
                     {% set method_info = _('Change how forms are submited, <a href="http://en.wikipedia.org/wiki/Hypertext_Transfer_Protocol#Request_methods" rel="external">learn more about request methods</a>') %}
                     {{ preferences_item_header(method_info, method_label, rtl) }}
-                        <select class="form-control" name='method'>
+                        <select name='method'>
                             <option value="POST" {% if method == 'POST' %}selected="selected"{% endif %}>POST</option>
                             <option value="GET" {% if method == 'GET' %}selected="selected"{% endif %}>GET</option>
                         </select>
@@ -94,7 +94,7 @@
                     {% set safesearch_label = _('SafeSearch') %}
                     {% set safesearch_info = _('Filter content') %}
                     {{ preferences_item_header(safesearch_info, safesearch_label, rtl) }}
-                        <select class="form-control" name='safesearch'>
+                        <select name='safesearch'>
                             <option value="2" {% if safesearch == '2' %}selected="selected"{% endif %}>{{ _('Strict') }}</option>
                             <option value="1" {% if safesearch == '1' %}selected="selected"{% endif %}>{{ _('Moderate') }}</option>
                             <option value="0" {% if safesearch == '0' %}selected="selected"{% endif %}>{{ _('None') }}</option>
@@ -104,7 +104,7 @@
                     {% set theme_label = _('Themes') %}
                     {% set theme_info = _('Change searx layout') %}
                     {{ preferences_item_header(theme_info, theme_label, rtl) }}
-                        <select class="form-control" name="theme">
+                        <select name="theme">
                             {% for name in themes %}
                             <option value="{{ name }}" {% if name == theme %}selected="selected"{% endif %}>{{ name }}</option>
                             {% endfor %}
@@ -112,7 +112,7 @@
                     {{ preferences_item_footer(theme_info, theme_label, rtl) }}
 
                     {{ preferences_item_header(_('Choose style for this theme'), _('Style'), rtl) }}
-                        <select class="form-control" name='oscar-style'>
+                        <select name='oscar-style'>
                             <option value="logicodev" >Logicodev</option>
                             <option value="pointhi" {% if cookies['oscar-style'] == 'pointhi' %}selected="selected"{% endif %}>Pointhi</option>
                         </select>
@@ -121,7 +121,7 @@
                     {% set label = _('Results on new tabs') %}
                     {% set info = _('Open result links on new browser tabs') %}
                     {{ preferences_item_header(info, label, rtl) }}
-                        <select class="form-control" name='results_on_new_tab'>
+                        <select name='results_on_new_tab'>
                             <option value="1" {% if results_on_new_tab %}selected="selected"{% endif %}>{{ _('On') }}</option>
                             <option value="0" {% if not results_on_new_tab %}selected="selected"{% endif %}>{{ _('Off')}}</option>
                         </select>
@@ -231,21 +231,21 @@
                 <noscript>
                     <h3>{{ _('Cookies') }}</h3>
                 </noscript>
-                <p class="text-muted" style="margin:20px 0;">
+                <p style="margin:20px 0;">
                     {{ _('This is the list of cookies and their values searx is storing on your computer.') }}<br />
                     {{ _('With that list, you can assess searx transparency.') }}<br />
                 </p>
                 {% if cookies %}
                 <table class="table table-striped">
                     <tr>
-                        <th class="text-muted" style="padding-right:40px;">{{ _('Cookie name') }}</th>
-                        <th class="text-muted">{{ _('Value') }}</th>
+                        <th style="padding-right:40px;">{{ _('Cookie name') }}</th>
+                        <th>{{ _('Value') }}</th>
                     </tr>
 
                     {% for cookie in cookies %}
                     <tr>
-                        <td class="text-muted" style="padding-right:40px;">{{ cookie }}</td>
-                        <td class="text-muted">{{ cookies[cookie] }}</td>
+                        <td style="padding-right:40px;">{{ cookie }}</td>
+                        <td>{{ cookies[cookie] }}</td>
                     </tr>
                     {% endfor %}
                 </table>
@@ -254,7 +254,7 @@
                 {% endif %}
             </div>
         </div>
-        <p class="text-muted" style="margin:20px 0;">{{ _('These settings are stored in your cookies, this allows us not to store this data about you.') }}
+        <p style="margin:20px 0;">{{ _('These settings are stored in your cookies, this allows us not to store this data about you.') }}
         <br />
         {{ _("These cookies serve your sole convenience, we don't use these cookies to track you.") }}
         </p>

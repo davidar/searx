@@ -5,8 +5,6 @@
     <div class="row">
         <div class="col-sm-8" id="main_results">
             <h1 class="sr-only">{{ _('Search results') }}</h1>
-            {% include 'oscar/search.html' %}
-
             {% if answers %}
             {% for answer in answers %}
             <div class="result well">
@@ -113,34 +111,6 @@
                 </div>
             </div>
             {% endif %}
-
-            <div class="panel panel-default">
-                <div class="panel-heading">
-                    <h4 class="panel-title">{{ _('Links') }}</h4>
-                </div>
-                <div class="panel-body">
-                    <form role="form">
-                        <div class="form-group">
-                            <label for="search_url">{{ _('Search URL') }}</label>
-                            <input id="search_url" type="url" class="form-control select-all-on-click cursor-text" name="search_url" value="{{ base_url }}?q={{ q|urlencode }}{% if selected_categories %}&amp;categories={{ selected_categories|join(",") | replace(' ','+') }}{% endif %}{% if pageno > 1 %}&amp;pageno={{ pageno }}{% endif %}{% if time_range %}&amp;time_range={{ time_range }}{% endif %}" readonly>
-                        </div>
-                    </form>
-
-                    <label>{{ _('Download results') }}</label>
-                    <div class="clearfix"></div>
-                    {% for output_type in ('csv', 'json', 'rss') %}
-                    <form method="{{ method or 'POST' }}" action="{{ url_for('index') }}" class="form-inline pull-{% if rtl %}right{% else %}left{% endif %} result_download">
-                        <input type="hidden" name="q" value="{{ q }}">
-                        <input type="hidden" name="format" value="{{ output_type }}">
-                        {% for category in selected_categories %}<input type="hidden" name="category_{{ category }}" value="1">{% endfor %}
-                        <input type="hidden" name="pageno" value="{{ pageno }}">
-                        <input type="hidden" name="time_range" value="{{ time_range }}" />
-                        <button type="submit" class="btn btn-default">{{ output_type }}</button>
-                    </form>
-                    {% endfor %}
-                    <div class="clearfix"></div>
-                </div>
-            </div>
         </div><!-- /#sidebar_results -->
     </div>
 {% endblock %}

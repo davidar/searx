@@ -1,11 +1,4 @@
-{% from 'oscar/macros.html' import result_header, result_sub_header, result_footer, result_footer_rtl, icon %}
-
-{{ result_header(result, favicons) }}
-{{ result_sub_header(result) }}
-
-{% if result.embedded %}
-    <small> &bull; <a class="text-info btn-collapse collapsed cursor-pointer media-loader disabled_if_nojs" data-toggle="collapse" data-target="#result-video-{{ index }}" data-btn-text-collapsed="{{ _('show video') }}" data-btn-text-not-collapsed="{{ _('hide video') }}">{{ icon('film') }} {{ _('show video') }}</a></small>
-{% endif %}
+{% from 'oscar/macros.html' import result_link, result_sub_header, result_footer, result_footer_rtl, icon %}
 
 {% if result.embedded %}
 <div id="result-video-{{ index }}" class="collapse">
@@ -16,12 +9,16 @@
 <div class="container-fluid">
     <div class="row">
         <a href="{{ result.url }}" {% if results_on_new_tab %}target="_blank" rel="noopener noreferrer"{% else %}rel="noreferrer"{% endif %}><img class="thumbnail col-xs-6 col-sm-4 col-md-4 result-content" src="{{ image_proxify(result.thumbnail) }}" alt="{{ result.title|striptags }} {{ result.engine }}" /></a>
-        {% if result.content %}<p class="col-xs-12 col-sm-8 col-md-8 result-content">{{ result.content|safe }}</p>{% endif %}
+        {% if result.content %}
+        <p class="col-xs-12 col-sm-8 col-md-8 result-content">
+            {{ result.content|safe }}
+            <span class="result_header">
+                {{ result_link(result.url, result.title|trim|safe) }}{% if result.publishedDate %}, <time class="text-nowrap" datetime="{{ result.pubdate }}" >{{ result.publishedDate }}</time>{% endif %}
+                {% if result.embedded %}
+                    <small><a class="text-info btn-collapse collapsed cursor-pointer media-loader disabled_if_nojs" data-toggle="collapse" data-target="#result-video-{{ index }}" data-btn-text-collapsed="{{ _('show video') }}" data-btn-text-not-collapsed="{{ _('hide video') }}">{{ icon('film') }} {{ _('show video') }}</a></small>
+                {% endif %}
+            </span>
+        </p>
+        {% endif %}
     </div>
 </div>
-
-{% if rtl %}
-{{ result_footer_rtl(result) }}
-{% else %}
-{{ result_footer(result) }}
-{% endif %}

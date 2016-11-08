@@ -13,18 +13,6 @@
 <a href="{{ url }}" {% if classes %}class="{{ classes }} "{% endif %}{% if results_on_new_tab %}target="_blank" rel="noopener noreferrer"{% else %}rel="noreferrer"{% endif %}>{{ title }}</a>
 {%- endmacro -%}
 
-<!-- Draw result header -->
-{% macro result_header(result, favicons) -%}
-<h4 class="result_header">{% if result.engine~".png" in favicons %}{{ draw_favicon(result.engine) }} {% endif %}{{ result_link(result.url, result.title|safe) }}</h4>
-{%- endmacro %}
-
-<!-- Draw result sub header -->
-{% macro result_sub_header(result) -%}
-    {% if result.publishedDate %}<time class="text-muted" datetime="{{ result.pubdate }}" >{{ result.publishedDate }}</time>{% endif %}
-    {% if result.magnetlink %}<small> &bull; {{ result_link(result.magnetlink, icon('magnet') + _('magnet link'), "magnetlink") }}</small>{% endif %}
-    {% if result.torrentfile %}<small> &bull; {{ result_link(result.torrentfile, icon('download-alt') + _('torrent file'), "torrentfile") }}</small>{% endif %}
-{%- endmacro %}
-
 <!-- Draw result footer -->
 {% macro result_footer(result) -%}
     <div class="clearfix"></div>
@@ -71,12 +59,11 @@
     {% endif %}
 {%- endmacro %}
 
-{% macro checkbox_toggle(id, blocked) -%}
+{% macro checkbox_toggle(id, allowed) -%}
     <div class="onoffswitch">
-        <input type="checkbox" id="{{ id }}" name="{{ id }}"{% if blocked %} checked="checked"{% endif %} class="onoffswitch-checkbox">
+        <input type="checkbox" id="{{ id }}" name="{{ id }}"{% if allowed %} checked="checked"{% endif %} class="onoffswitch-checkbox">
         <label class="onoffswitch-label" for="{{ id }}">
-            <span class="onoffswitch-inner"></span>
-            <span class="onoffswitch-switch"></span>
+            <span class="onoffswitch-inner glyphicon"></span>
         </label>
     </div>
 {%- endmacro %}

@@ -1,11 +1,4 @@
-{% from 'oscar/macros.html' import result_header, result_sub_header, result_footer, result_footer_rtl, icon with context %}
-
-{{ result_header(result, favicons) }}
-{{ result_sub_header(result) }}
-
-{% if result.embedded %}
-    <small> &bull; <a class="text-info btn-collapse collapsed cursor-pointer media-loader disabled_if_nojs" data-toggle="collapse" data-target="#result-media-{{ index }}" data-btn-text-collapsed="{{ _('show media') }}" data-btn-text-not-collapsed="{{ _('hide media') }}">{{ icon('music') }} {{ _('show media') }}</a></small>
-{% endif %}
+{% from 'oscar/macros.html' import result_link, result_sub_header, result_footer, result_footer_rtl, icon with context %}
 
 {% if result.embedded %}
 <div id="result-media-{{ index }}" class="collapse">
@@ -20,12 +13,16 @@
 {% if result.content %}<p class="result-content col-xs-8 col-sm-8 col-md-8">{{ result.content|safe }}</p>{% endif %}
     </div>
 </div>
-{% else %}
-{% if result.content %}<p class="result-content">{{ result.content|safe }}</p>{% endif %}
+{% elif result.content %}
+<p class="result-content">
+    {{ result.content|safe }}
+    <span class="result_header">
+        {{ result_link(result.url, result.title|trim|safe) }}{% if result.publishedDate %}, <time class="text-nowrap" datetime="{{ result.pubdate }}" >{{ result.publishedDate }}</time>{% endif %}
+        {% if result.embedded %}
+            <small><a class="text-info btn-collapse collapsed cursor-pointer media-loader disabled_if_nojs" data-toggle="collapse" data-target="#result-media-{{ index }}" data-btn-text-collapsed="{{ _('show media') }}" data-btn-text-not-collapsed="{{ _('hide media') }}">{{ icon('music') }} {{ _('show media') }}</a></small>
+        {% endif %}
+    </span>
+</p>
 {% endif %}
 
-{% if rtl %}
-{{ result_footer_rtl(result) }}
-{% else %}
-{{ result_footer(result) }}
-{% endif %}
+<div class="clearfix"></div>

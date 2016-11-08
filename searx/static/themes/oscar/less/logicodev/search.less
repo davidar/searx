@@ -11,22 +11,17 @@
     flex-basis: auto;
     font-size: 1.2rem;
     font-weight: normal;
-    background-color: white;
-    border: @mild-gray 1px solid;
-    border-right: none;
+    background-color: @black;
+    border: none;
     color: @dark-gray;
     padding-bottom: 0.4rem;
     padding-top: 0.4rem;
     text-align: center;
   }
-  label:last-child, .input-group-addon:last-child {
-      border-right: @mild-gray 1px solid;
-  }
 
   input[type="checkbox"]:checked + label {
-    color: @black;
-    font-weight: bold;
-    border-bottom: @light-green 5px solid;
+    color: @dim-gray;
+    border-bottom: @orange 5px solid;
   }
 }
 
@@ -40,17 +35,13 @@
     width: 80%;
 }
 
-#q{
+#q {
     box-shadow: none;
-    border-right: none;
-    border-color: @gray;
+    border: none;
+    font-style: italic;
+    padding: 0;
+    height: 30px;
+    background-color: @black;
+    color: @dim-gray;
+    width: 100%;
 }
-
- #search_form .input-group-btn .btn{
-    border-color: @gray;
- }
-
- #search_form .input-group-btn .btn:hover{
-     background-color: @green;
-     color: white;
- }
