@@ -13,7 +13,7 @@
     <form method="post" action="{{ url_for('preferences') }}" id="search_form">
 
         <!-- Nav tabs -->
-        <ul class="nav nav-tabs nav-justified hide_if_nojs" role="tablist" style="margin-bottom:20px;">
+        <ul class="nav nav-tabs nav-justified hide_if_nojs" role="tablist">
           <li class="active"><a href="#tab_general" role="tab" data-toggle="tab">{{ _('General') }}</a></li>
           <li><a href="#tab_engine" role="tab" data-toggle="tab">{{ _('Engines') }}</a></li>
           <li><a href="#tab_plugins" role="tab" data-toggle="tab">{{ _('Plugins') }}</a></li>
@@ -132,7 +132,7 @@
             <div class="tab-pane active_if_nojs" id="tab_engine">
 
                 <!-- Nav tabs -->
-                <ul class="nav nav-tabs nav-justified hide_if_nojs" role="tablist" style="margin-bottom:20px;">
+                <ul class="nav nav-tabs nav-justified hide_if_nojs" role="tablist">
                     {% for categ in all_categories %}
                     <li{% if loop.first %} class="active"{% endif %}><a href="#tab_engine_{{ categ|replace(' ', '_') }}" role="tab" data-toggle="tab">{{ _(categ) }}</a></li>
                     {% endfor %}
@@ -148,7 +148,6 @@
                     <noscript><label>{{ _(categ) }}</label>
                     </noscript>
                     <div class="tab-pane{% if loop.first %} active{% endif %} active_if_nojs" id="tab_engine_{{ categ|replace(' ', '_') }}">
-                        <div class="container-fluid">
                         <fieldset>
                           <div class="table-responsive">
 			  <table class="table table-hover table-condensed table-striped">
@@ -197,7 +196,6 @@
 		          </table>
                           </div>
                         </fieldset>
-                        </div>
                     </div>
                     {% endfor %}
                 </div>
@@ -231,20 +229,22 @@
                 <noscript>
                     <h3>{{ _('Cookies') }}</h3>
                 </noscript>
-                <p style="margin:20px 0;">
-                    {{ _('This is the list of cookies and their values searx is storing on your computer.') }}<br />
+                <div class="container-fluid">
+                <p>
+                    {{ _('This is the list of cookies and their values searx is storing on your computer.') }}
                     {{ _('With that list, you can assess searx transparency.') }}<br />
                 </p>
+                </div>
                 {% if cookies %}
                 <table class="table table-striped">
                     <tr>
-                        <th style="padding-right:40px;">{{ _('Cookie name') }}</th>
+                        <th>{{ _('Cookie name') }}</th>
                         <th>{{ _('Value') }}</th>
                     </tr>
 
                     {% for cookie in cookies %}
                     <tr>
-                        <td style="padding-right:40px;">{{ cookie }}</td>
+                        <td>{{ cookie }}</td>
                         <td>{{ cookies[cookie] }}</td>
                     </tr>
                     {% endfor %}
@@ -254,8 +254,7 @@
                 {% endif %}
             </div>
         </div>
-        <p style="margin:20px 0;">{{ _('These settings are stored in your cookies, this allows us not to store this data about you.') }}
-        <br />
+        <p>{{ _('These settings are stored in your cookies, this allows us not to store this data about you.') }}
         {{ _("These cookies serve your sole convenience, we don't use these cookies to track you.") }}
         </p>
 

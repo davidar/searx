@@ -1,0 +1,31 @@
+html {
+    position: relative;
+    min-height: 100%;
+}
+
+body {
+    font-family: "TeX Gyre Bonum", serif;
+    font-size: 16px;
+    /* Margin bottom by footer height */
+    margin-bottom: 80px;
+    background-color: @white;
+    color: @black;
+}
+
+p {
+    text-align: justify;
+}
+
+a {
+    color: @red;
+    text-decoration: none;
+
+    &:hover, &:active, &:focus, &:visited {
+        color: @maroon;
+        text-decoration: none;
+    }
+}
+
+body > .container {
+    padding-top: 80px;
+}

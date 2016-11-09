@@ -20,57 +20,8 @@
 
 @import "code.less";
 
-@font-face{font-family:"TeX Gyre Bonum";src:url(https://davidar.io/texfonts/tex-gyre/texgyrebonum-bold.woff);font-weight:700;font-stretch:normal;font-style:normal}
-@font-face{font-family:"TeX Gyre Bonum";src:url(https://davidar.io/texfonts/tex-gyre/texgyrebonum-bolditalic.woff);font-weight:700;font-stretch:normal;font-style:italic}
-@font-face{font-family:"TeX Gyre Bonum";src:url(https://davidar.io/texfonts/tex-gyre/texgyrebonum-italic.woff);font-weight:400;font-stretch:normal;font-style:italic}
-@font-face{font-family:"TeX Gyre Bonum";src:url(https://davidar.io/texfonts/tex-gyre/texgyrebonum-regular.woff);font-weight:400;font-stretch:normal;font-style:normal}
+@import "fonts.less";
 
-html {
-    position: relative;
-    min-height: 100%;
-}
+@import "preferences.less";
 
-body {
-    font-family: "TeX Gyre Bonum", serif;
-    font-size: 16px;
-    /* Margin bottom by footer height */
-    margin-bottom: 80px;
-    background-color: white;
-    color: @black;
-}
-
-p {
-    text-align: justify;
-}
-
-a {
-    color: @red;
-    text-decoration: none;
-
-    &:hover, &:active, &:focus, &:visited {
-        color: @maroon;
-        text-decoration: none;
-    }
-}
-
-select {
-    color: -moz-comboboxtext; /* http://stackoverflow.com/questions/30177585/restore-default-firefox-select-styling-with-inline-or-scoped-css */
-}
-
-body > .container {
-    padding-top: 80px;
-}
-
-.btn-primary {
-    background-color: @red;
-    border-color: @maroon;
-    
-    &:hover, &:active, &:focus {
-        background-color: @maroon;
-        border-color: @maroon;
-    }
-}
-
-.progress-bar-info {
-    background-color: @red;
-}
+@import "body.less";
