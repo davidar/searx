@@ -5,6 +5,7 @@ general:
 search:
     safe_search : 0 # Filter results. 0: None, 1: Moderate, 2: Strict
     autocomplete : "" # Existing autocomplete backends: "dbpedia", "duckduckgo", "google", "startpage", "wikipedia" - leave blank to turn it off by default
+    language : "all"
 
 server:
     port : 8888
@@ -12,11 +13,18 @@ server:
     secret_key : "ultrasecretkey" # change this!
     base_url : False # Set custom base_url. Possible values: False or "https://your.custom.host/location/"
     image_proxy : False # Proxying image results through searx
+    http_protocol_version : "1.0"  # 1.0 and 1.1 are supported
 
 ui:
     themes_path : "" # Custom ui themes path - leave it blank if you didn't change
     default_theme : oscar # ui theme
     default_locale : "" # Default interface locale - leave blank to detect from browser information or use codes from the 'locales' config section
+
+# searx supports result proxification using an external service: https://github.com/asciimoo/morty
+# uncomment below section if you have running morty proxy
+#result_proxy:
+#    url : http://127.0.0.1:3000/
+#    key : your_morty_proxy_key
 
 outgoing: # communication with search engines
     request_timeout : 2.0 # seconds
@@ -84,6 +92,17 @@ engines:
     disabled : True
     shortcut : bb
 
+  - name : ccc-tv
+    engine : xpath
+    paging : False
+    search_url : https://media.ccc.de/search/?q={query}
+    url_xpath : //div[@class="caption"]/h3/a/@href
+    title_xpath : //div[@class="caption"]/h3/a/text()
+    content_xpath : //div[@class="caption"]/h4/@title
+    categories : videos
+    disabled : True
+    shortcut : c3tv
+
   - name : crossref
     engine : json_engine
     paging : True
@@ -147,6 +166,18 @@ engines:
     shortcut : ddg
     disabled : True
 
+  - name : etymonline
+    engine : xpath
+    paging : True
+    search_url : http://etymonline.com/?search={query}&p={pageno}
+    url_xpath : //dt/a[1]/@href
+    title_xpath : //dt
+    content_xpath : //dd
+    suggestion_xpath : //a[@class="crossreference"]
+    first_page_num : 0
+    shortcut : et
+    disabled : True
+
 # api-key required: http://www.faroo.com/hp/api/api.html#key
 #  - name : faroo
 #    engine : faroo
@@ -185,6 +216,7 @@ engines:
   - name : gigablast
     engine : gigablast
     shortcut : gb
+    timeout : 3.0
     disabled: True
 
   - name : gitlab
@@ -243,8 +275,8 @@ engines:
     engine        : xpath
     search_url    : https://play.google.com/store/search?q={query}&c=movies
     url_xpath     : //a[@class="title"]/@href
-    title_xpath   : //a[@class="title"]
-    content_xpath : //a[@class="subtitle"]
+    title_xpath   : //a[@class="title"]/@title
+    content_xpath : //a[contains(@class, "subtitle")]
     categories : videos
     shortcut : gpm
     disabled : True
@@ -275,8 +307,8 @@ engines:
     engine : xpath
     paging : True
     search_url : https://habrahabr.ru/search/page{pageno}/?q={query}
-    url_xpath : //div[@class="search_results"]//a[@class="post_title"]/@href
-    title_xpath : //div[@class="search_results"]//a[@class="post_title"]
+    url_xpath : //div[@class="search_results"]//a[contains(@class, "post__title_link")]/@href
+    title_xpath : //div[@class="search_results"]//a[contains(@class, "post__title_link")]
     content_xpath : //div[@class="search_results"]//div[contains(@class, "content")]
     categories : it
     timeout : 4.0
@@ -300,6 +332,22 @@ engines:
     shortcut : in
     timeout : 6.0
     disabled : True
+
+  - name: kickass
+    engine : kickass
+    shortcut : kc
+    timeout : 4.0
+    disabled : True
+
+  - name : lobste.rs
+    engine : xpath
+    search_url : https://lobste.rs/search?utf8=%E2%9C%93&q={query}&what=stories&order=relevance
+    results_xpath : //li[contains(@class, "story")]
+    url_xpath : .//span[@class="link"]/a/@href
+    title_xpath : .//span[@class="link"]/a
+    content_xpath : .//a[@class="domain"]
+    categories : it
+    shortcut : lo
 
   - name : microsoft academic
     engine : json_engine
@@ -339,6 +387,13 @@ engines:
     disabled : True
     shortcut : or
 
+  - name : pdbe
+    engine : pdbe
+    shortcut : pdb
+# Hide obsolete PDB entries.
+# Default is not to hide obsolete structures
+#    hide_obsolete : False
+
   - name : photon
     engine : photon
     shortcut : ph
@@ -377,7 +432,7 @@ engines:
     timeout : 10.0
     disabled : True
 
-  - name : scanr_structures
+  - name : scanr structures
     shortcut: scs
     engine : scanr_structures
     disabled : True
@@ -399,6 +454,14 @@ engines:
     shortcut : scc
     disabled : True
 
+#  - name : searx
+#    engine : searx_engine
+#    shortcut : se
+#    instance_urls :
+#        - http://127.0.0.1:8888/
+#        - ...
+#    disabled : True
+
   - name : spotify
     engine : spotify
     shortcut : stf
@@ -418,8 +481,8 @@ engines:
 
   - name : ixquick
     engine : startpage
-    base_url : 'https://www.ixquick.com/'
-    search_url : 'https://www.ixquick.com/do/search'
+    base_url : 'https://www.ixquick.eu/'
+    search_url : 'https://www.ixquick.eu/do/search'
     shortcut : iq
     timeout : 6.0
     disabled : True
@@ -450,9 +513,9 @@ engines:
 #  - name : urbandictionary
 #    engine        : xpath
 #    search_url    : http://www.urbandictionary.com/define.php?term={query}
-#    url_xpath     : //div[@class="word"]//a/@href
-#    title_xpath   : //div[@class="word"]//a
-#    content_xpath : //div[@class="definition"]
+#    url_xpath     : //*[@class="word"]/@href
+#    title_xpath   : //*[@class="def-header"]
+#    content_xpath : //*[@class="meaning"]
 #    shortcut : ud
 
   - name : yahoo
@@ -495,6 +558,12 @@ engines:
     timeout: 6.0
     categories : science
 
+  - name : seedpeer
+    engine : seedpeer
+    shortcut: speu
+    categories: files, music, videos
+    disabled: True
+
   - name : dictzone
     engine : dictzone
     shortcut : dc
@@ -507,6 +576,18 @@ engines:
     # You can use without an API key, but you are limited to 1000 words/day
     # See : http://mymemory.translated.net/doc/usagelimits.php
     # api_key : ''
+
+  - name : voat
+    engine: xpath
+    shortcut: vo
+    categories: social media
+    search_url : https://voat.co/search?q={query}
+    url_xpath : //p[contains(@class, "title")]/a/@href
+    title_xpath : //p[contains(@class, "title")]/a
+    content_xpath : //span[@class="domain"]
+    timeout : 10.0
+    disabled : True
+
 
 #The blekko technology and team have joined IBM Watson! -> https://blekko.com/
 #  - name : blekko images
@@ -531,6 +612,7 @@ engines:
 locales:
     en : English
     bg : Български (Bulgarian)
+    cs : Čeština (Czech)
     de : Deutsch (German)
     el_GR : Ελληνικά (Greek_Greece)
     eo : Esperanto (Esperanto)
@@ -545,5 +627,6 @@ locales:
     pt_BR : Português (Portuguese_Brazil)
     ro : Română (Romanian)
     ru : Русский (Russian)
+    sv : Svenska (Swedish)
     tr : Türkçe (Turkish)
     zh : 中文 (Chinese)

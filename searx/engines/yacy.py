@@ -16,6 +16,8 @@ from json import loads
 from urllib import urlencode
 from dateutil import parser
 
+from searx.utils import html_to_text
+
 # engine dependent config
 categories = ['general', 'images']  # TODO , 'music', 'videos', 'files'
 paging = True
@@ -51,7 +53,7 @@ def request(query, params):
 
     # add language tag if specified
     if params['language'] != 'all':
-        params['url'] += '&lr=lang_' + params['language'].split('_')[0]
+        params['url'] += '&lr=lang_' + params['language'].split('-')[0]
 
     return params
 
@@ -88,7 +90,7 @@ def response(resp):
             # append result
             results.append({'url': result['link'],
                             'title': result['title'],
-                            'content': result['description'],
+                            'content': html_to_text(result['description']),
                             'publishedDate': publishedDate})
 
         # TODO parse video, audio and file results

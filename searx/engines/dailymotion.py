@@ -14,8 +14,8 @@
 
 from urllib import urlencode
 from json import loads
-from cgi import escape
 from datetime import datetime
+from requests import get
 
 # engine dependent config
 categories = ['videos']
@@ -27,6 +27,8 @@ language_support = True
 search_url = 'https://api.dailymotion.com/videos?fields=created_time,title,description,duration,url,thumbnail_360_url,id&sort=relevance&limit=5&page={pageno}&{query}'  # noqa
 embedded_url = '<iframe frameborder="0" width="540" height="304" ' +\
     'data-src="//www.dailymotion.com/embed/video/{videoid}" allowfullscreen></iframe>'
+
+supported_languages_url = 'https://api.dailymotion.com/languages'
 
 
 # do search-request
@@ -57,7 +59,7 @@ def response(resp):
     for res in search_res['list']:
         title = res['title']
         url = res['url']
-        content = escape(res['description'])
+        content = res['description']
         thumbnail = res['thumbnail_360_url']
         publishedDate = datetime.fromtimestamp(res['created_time'], None)
         embedded = embedded_url.format(videoid=res['id'])
@@ -75,3 +77,22 @@ def response(resp):
 
     # return results
     return results
+
+
+# get supported languages from their site
+def _fetch_supported_languages(resp):
+    supported_languages = {}
+
+    response_json = loads(resp.text)
+
+    for language in response_json['list']:
+        supported_languages[language['code']] = {}
+
+        name = language['native_name']
+        if name:
+            supported_languages[language['code']]['name'] = name
+        english_name = language['name']
+        if english_name:
+            supported_languages[language['code']]['english_name'] = english_name
+
+    return supported_languages

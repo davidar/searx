@@ -10,11 +10,11 @@
  @parse       url, title, content
 """
 
-from cgi import escape
 from json import loads
 from random import randint
 from time import time
 from urllib import urlencode
+from lxml.html import fromstring
 
 # engine dependent config
 categories = ['general']
@@ -41,6 +41,8 @@ url_xpath = './/url'
 title_xpath = './/title'
 content_xpath = './/sum'
 
+supported_languages_url = 'https://gigablast.com/search?&rxikd=1'
+
 
 # do search-request
 def request(query, params):
@@ -49,7 +51,9 @@ def request(query, params):
     if params['language'] == 'all':
         language = 'xx'
     else:
-        language = params['language'][0:2]
+        language = params['language'].replace('-', '_').lower()
+        if language.split('-')[0] != 'zh':
+            language = language.split('-')[0]
 
     if params['safesearch'] >= 1:
         safesearch = 1
@@ -78,8 +82,26 @@ def response(resp):
     for result in response_json['results']:
         # append result
         results.append({'url': result['url'],
-                        'title': escape(result['title']),
-                        'content': escape(result['sum'])})
+                        'title': result['title'],
+                        'content': result['sum']})
 
     # return results
     return results
+
+
+# get supported languages from their site
+def _fetch_supported_languages(resp):
+    supported_languages = []
+    dom = fromstring(resp.text)
+    links = dom.xpath('//span[@id="menu2"]/a')
+    for link in links:
+        href = link.xpath('./@href')[0].split('lang%3A')
+        if len(href) == 2:
+            code = href[1].split('_')
+            if len(code) == 2:
+                code = code[0] + '-' + code[1].upper()
+            else:
+                code = code[0]
+            supported_languages.append(code)
+
+    return supported_languages

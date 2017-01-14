@@ -9,7 +9,6 @@
 # @parse       url, title, content, suggestion
 
 import re
-from cgi import escape
 from urllib import urlencode
 from urlparse import urlparse, parse_qsl
 from lxml import html, etree
@@ -96,13 +95,15 @@ search_url = ('https://{hostname}' +
 time_range_search = "&tbs=qdr:{range}"
 time_range_dict = {'day': 'd',
                    'week': 'w',
-                   'month': 'm'}
+                   'month': 'm',
+                   'year': 'y'}
 
 # other URLs
 map_hostname_start = 'maps.google.'
 maps_path = '/maps'
 redirect_path = '/url'
 images_path = '/images'
+supported_languages_url = 'https://www.google.com/preferences?#languages'
 
 # specific xpath variables
 results_xpath = '//div[@class="g"]'
@@ -155,7 +156,7 @@ def parse_url(url_string, google_hostname):
 def extract_text_from_dom(result, xpath):
     r = result.xpath(xpath)
     if len(r) > 0:
-        return escape(extract_text(r[0]))
+        return extract_text(r[0])
     return None
 
 
@@ -167,8 +168,12 @@ def request(query, params):
         language = 'en'
         country = 'US'
         url_lang = ''
+    elif params['language'][:2] == 'jv':
+        language = 'jw'
+        country = 'ID'
+        url_lang = 'lang_jw'
     else:
-        language_array = params['language'].lower().split('_')
+        language_array = params['language'].lower().split('-')
         if len(language_array) == 2:
             country = language_array[1]
         else:
@@ -211,6 +216,10 @@ def response(resp):
 
     # convert the text to dom
     dom = html.fromstring(resp.text)
+
+    instant_answer = dom.xpath('//div[@id="_vBb"]//text()')
+    if instant_answer:
+        results.append({'answer': u' '.join(instant_answer)})
 
     # parse results
     for result in dom.xpath(results_xpath):
@@ -264,7 +273,7 @@ def response(resp):
     # parse suggestion
     for suggestion in dom.xpath(suggestion_xpath):
         # append suggestion
-        results.append({'suggestion': escape(extract_text(suggestion))})
+        results.append({'suggestion': extract_text(suggestion)})
 
     # return results
     return results
@@ -355,3 +364,16 @@ def attributes_to_html(attributes):
         retval = retval + '<tr><th>' + a.get('label') + '</th><td>' + value + '</td></tr>'
     retval = retval + '</table>'
     return retval
+
+
+# get supported languages from their site
+def _fetch_supported_languages(resp):
+    supported_languages = {}
+    dom = html.fromstring(resp.text)
+    options = dom.xpath('//table//td/font/label/span')
+    for option in options:
+        code = option.xpath('./@id')[0][1:]
+        name = option.text.title()
+        supported_languages[code] = {"name": name}
+
+    return supported_languages

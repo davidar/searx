@@ -12,6 +12,7 @@ class TestBingNewsEngine(SearxTestCase):
         dicto = defaultdict(dict)
         dicto['pageno'] = 1
         dicto['language'] = 'fr_FR'
+        dicto['time_range'] = ''
         params = bing_news.request(query, dicto)
         self.assertIn('url', params)
         self.assertIn(query, params['url'])
@@ -21,6 +22,13 @@ class TestBingNewsEngine(SearxTestCase):
         dicto['language'] = 'all'
         params = bing_news.request(query, dicto)
         self.assertIn('en', params['url'])
+
+    def test_no_url_in_request_year_time_range(self):
+        dicto = defaultdict(dict)
+        query = 'test_query'
+        dicto['time_range'] = 'year'
+        params = bing_news.request(query, dicto)
+        self.assertEqual({}, params['url'])
 
     def test_response(self):
         self.assertRaises(AttributeError, bing_news.response, None)

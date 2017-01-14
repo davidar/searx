@@ -22,10 +22,11 @@ if __name__ == '__main__':
     from os.path import realpath, dirname
     path.append(realpath(dirname(realpath(__file__)) + '/../'))
 
-import json
 import cStringIO
-import os
 import hashlib
+import hmac
+import json
+import os
 import requests
 
 from searx import logger
@@ -39,7 +40,7 @@ except:
     logger.critical("cannot import dependency: pygments")
     from sys import exit
     exit(1)
-
+from cgi import escape
 from datetime import datetime, timedelta
 from urllib import urlencode
 from urlparse import urlparse, urljoin
@@ -50,9 +51,9 @@ from flask import (
 )
 from flask_babel import Babel, gettext, format_date, format_decimal
 from flask.json import jsonify
-from searx import settings, searx_dir
+from searx import settings, searx_dir, searx_debug
 from searx.engines import (
-    categories, engines, get_engines_stats, engine_shortcuts
+    categories, engines, engine_shortcuts, get_engines_stats, initialize_engines
 )
 from searx.utils import (
     UnicodeWriter, highlight_content, html_to_text, get_themes,
@@ -61,11 +62,12 @@ from searx.utils import (
 )
 from searx.version import VERSION_STRING
 from searx.languages import language_codes
-from searx.search import Search
-from searx.query import Query
+from searx.search import SearchWithPlugins, get_search_query_from_webapp
+from searx.query import RawTextQuery
 from searx.autocomplete import searx_bang, backends as autocomplete_backends
 from searx.plugins import plugins
 from searx.preferences import Preferences, ValidationException
+from searx.answerers import answerers
 
 # check if the pyopenssl, ndg-httpsclient, pyasn1 packages are installed.
 # They are needed for SSL connection without trouble, see #298
@@ -77,6 +79,9 @@ except ImportError:
     logger.critical("The pyopenssl, ndg-httpsclient, pyasn1 packages have to be installed.\n"
                     "Some HTTPS connections will fail")
 
+# serve pages with HTTP/1.1
+from werkzeug.serving import WSGIRequestHandler
+WSGIRequestHandler.protocol_version = "HTTP/{}".format(settings['server'].get('http_protocol_version', '1.0'))
 
 static_path, templates_path, themes =\
     get_themes(settings['ui']['themes_path']
@@ -98,6 +103,9 @@ app = Flask(
 app.jinja_env.trim_blocks = True
 app.jinja_env.lstrip_blocks = True
 app.secret_key = settings['server']['secret_key']
+
+if not searx_debug or os.environ.get("WERKZEUG_RUN_MAIN") == "true":
+    initialize_engines(settings['engines'])
 
 babel = Babel(app)
 
@@ -242,6 +250,24 @@ def url_for_theme(endpoint, override_theme=None, **values):
     return url_for(endpoint, **values)
 
 
+def proxify(url):
+    if url.startswith('//'):
+        url = 'https:' + url
+
+    if not settings.get('result_proxy'):
+        return url
+
+    url_params = dict(mortyurl=url.encode('utf-8'))
+
+    if settings['result_proxy'].get('key'):
+        url_params['mortyhash'] = hmac.new(settings['result_proxy']['key'],
+                                           url.encode('utf-8'),
+                                           hashlib.sha256).hexdigest()
+
+    return '{0}?{1}'.format(settings['result_proxy']['url'],
+                            urlencode(url_params))
+
+
 def image_proxify(url):
 
     if url.startswith('//'):
@@ -250,8 +276,10 @@ def image_proxify(url):
     if not request.preferences.get_value('image_proxy'):
         return url
 
-    hash_string = url + settings['server']['secret_key']
-    h = hashlib.sha256(hash_string.encode('utf-8')).hexdigest()
+    if settings.get('result_proxy'):
+        return proxify(url)
+
+    h = hmac.new(settings['server']['secret_key'], url.encode('utf-8'), hashlib.sha256).hexdigest()
 
     return '{0}?{1}'.format(url_for('image_proxy'),
                             urlencode(dict(url=url.encode('utf-8'), h=h)))
@@ -305,10 +333,16 @@ def render(template_name, override_theme=None, **kwargs):
 
     kwargs['safesearch'] = str(request.preferences.get_value('safesearch'))
 
+    kwargs['language_codes'] = language_codes
+    if 'current_language' not in kwargs:
+        kwargs['current_language'] = request.preferences.get_value('language')
+
     # override url_for function in templates
     kwargs['url_for'] = url_for_theme
 
     kwargs['image_proxify'] = image_proxify
+
+    kwargs['proxify'] = proxify if settings.get('result_proxy') else None
 
     kwargs['get_result_template'] = get_result_template
 
@@ -317,6 +351,8 @@ def render(template_name, override_theme=None, **kwargs):
     kwargs['template_name'] = template_name
 
     kwargs['cookies'] = request.cookies
+
+    kwargs['errors'] = request.errors
 
     kwargs['instance_name'] = settings['general']['instance_name']
 
@@ -338,20 +374,23 @@ def render(template_name, override_theme=None, **kwargs):
 
 @app.before_request
 def pre_request():
-    # merge GET, POST vars
+    request.errors = []
+
     preferences = Preferences(themes, categories.keys(), engines, plugins)
+    request.preferences = preferences
     try:
         preferences.parse_cookies(request.cookies)
     except:
-        # TODO throw error message to the user
-        logger.warning('Invalid config')
-    request.preferences = preferences
+        request.errors.append(gettext('Invalid settings, please edit your preferences'))
 
+    # merge GET, POST vars
+    # request.form
     request.form = dict(request.form.items())
     for k, v in request.args.items():
         if k not in request.form:
             request.form[k] = v
 
+    # request.user_plugins
     request.user_plugins = []
     allowed_plugins = preferences.plugins.get_enabled()
     disabled_plugins = preferences.plugins.get_disabled()
@@ -369,35 +408,42 @@ def index():
     Supported outputs: html, json, csv, rss.
     """
 
-    if not request.args and not request.form:
+    if request.form.get('q') is None:
         return render(
             'index.html',
         )
 
+    # search
+    search_query = None
+    result_container = None
     try:
-        search = Search(request)
+        search_query = get_search_query_from_webapp(request.preferences, request.form)
+        # search = Search(search_query) #  without plugins
+        search = SearchWithPlugins(search_query, request)
+        result_container = search.search()
     except:
+        request.errors.append(gettext('search error'))
+        logger.exception('search error')
         return render(
             'index.html',
         )
 
-    if plugins.call('pre_search', request, locals()):
-        search.search(request)
+    results = result_container.get_ordered_results()
 
-    plugins.call('post_search', request, locals())
+    # UI
+    advanced_search = request.form.get('advanced_search', None)
+    output_format = request.form.get('format', 'html')
+    if output_format not in ['html', 'csv', 'json', 'rss']:
+        output_format = 'html'
 
-    results = search.result_container.get_ordered_results()
-
+    # output
     for result in results:
-
-        plugins.call('on_result', request, locals())
-        if not search.paging and engines[result['engine']].paging:
-            search.paging = True
-
-        if search.request_data.get('format', 'html') == 'html':
+        if output_format == 'html':
             if 'content' in result and result['content']:
-                result['content'] = highlight_content(result['content'][:1024], search.query.encode('utf-8'))
-            result['title'] = highlight_content(result['title'], search.query.encode('utf-8'))
+                result['content'] = highlight_content(escape(result['content'][:1024]),
+                                                      search_query.query.encode('utf-8'))
+            result['title'] = highlight_content(escape(result['title'] or u''),
+                                                search_query.query.encode('utf-8'))
         else:
             if result.get('content'):
                 result['content'] = html_to_text(result['content']).strip()
@@ -424,16 +470,19 @@ def index():
                 else:
                     result['publishedDate'] = format_date(result['publishedDate'])
 
-    number_of_results = search.result_container.results_number()
-    if number_of_results < search.result_container.results_length():
+    number_of_results = result_container.results_number()
+    if number_of_results < result_container.results_length():
         number_of_results = 0
 
-    if search.request_data.get('format') == 'json':
-        return Response(json.dumps({'query': search.query,
+    if output_format == 'json':
+        return Response(json.dumps({'query': search_query.query,
                                     'number_of_results': number_of_results,
-                                    'results': results}),
+                                    'results': results,
+                                    'answers': list(result_container.answers),
+                                    'infoboxes': result_container.infoboxes,
+                                    'suggestions': list(result_container.suggestions)}),
                         mimetype='application/json')
-    elif search.request_data.get('format') == 'csv':
+    elif output_format == 'csv':
         csv = UnicodeWriter(cStringIO.StringIO())
         keys = ('title', 'url', 'content', 'host', 'engine', 'score')
         csv.writerow(keys)
@@ -442,14 +491,14 @@ def index():
             csv.writerow([row.get(key, '') for key in keys])
         csv.stream.seek(0)
         response = Response(csv.stream.read(), mimetype='application/csv')
-        cont_disp = 'attachment;Filename=searx_-_{0}.csv'.format(search.query.encode('utf-8'))
+        cont_disp = 'attachment;Filename=searx_-_{0}.csv'.format(search_query.query.encode('utf-8'))
         response.headers.add('Content-Disposition', cont_disp)
         return response
-    elif search.request_data.get('format') == 'rss':
+    elif output_format == 'rss':
         response_rss = render(
             'opensearch_response_rss.xml',
             results=results,
-            q=search.request_data['q'],
+            q=request.form['q'],
             number_of_results=number_of_results,
             base_url=get_base_url()
         )
@@ -458,17 +507,18 @@ def index():
     return render(
         'results.html',
         results=results,
-        q=search.request_data['q'],
-        selected_categories=search.categories,
-        paging=search.paging,
+        q=request.form['q'],
+        selected_categories=search_query.categories,
+        pageno=search_query.pageno,
+        time_range=search_query.time_range,
         number_of_results=format_decimal(number_of_results),
-        pageno=search.pageno,
-        advanced_search=search.is_advanced,
-        time_range=search.time_range,
+        advanced_search=advanced_search,
+        suggestions=result_container.suggestions,
+        answers=result_container.answers,
+        infoboxes=result_container.infoboxes,
+        paging=result_container.paging,
+        current_language=search_query.lang,
         base_url=get_base_url(),
-        suggestions=search.result_container.suggestions,
-        answers=search.result_container.answers,
-        infoboxes=search.result_container.infoboxes,
         theme=get_current_theme_name(),
         favicons=global_favicons[themes.index(get_current_theme_name())]
     )
@@ -485,30 +535,23 @@ def about():
 @app.route('/autocompleter', methods=['GET', 'POST'])
 def autocompleter():
     """Return autocompleter results"""
-    request_data = {}
-
-    # select request method
-    if request.method == 'POST':
-        request_data = request.form
-    else:
-        request_data = request.args
 
     # set blocked engines
     disabled_engines = request.preferences.engines.get_disabled()
 
     # parse query
-    query = Query(request_data.get('q', '').encode('utf-8'), disabled_engines)
-    query.parse_query()
+    raw_text_query = RawTextQuery(request.form.get('q', '').encode('utf-8'), disabled_engines)
+    raw_text_query.parse_query()
 
     # check if search query is set
-    if not query.getSearchQuery():
+    if not raw_text_query.getSearchQuery():
         return '', 400
 
     # run autocompleter
     completer = autocomplete_backends.get(request.preferences.get_value('autocomplete'))
 
     # parse searx specific autocompleter results like !bang
-    raw_results = searx_bang(query)
+    raw_results = searx_bang(raw_text_query)
 
     # normal autocompletion results only appear if max 3 inner results returned
     if len(raw_results) <= 3 and completer:
@@ -517,21 +560,21 @@ def autocompleter():
         if not language or language == 'all':
             language = 'en'
         else:
-            language = language.split('_')[0]
+            language = language.split('-')[0]
         # run autocompletion
-        raw_results.extend(completer(query.getSearchQuery(), language))
+        raw_results.extend(completer(raw_text_query.getSearchQuery(), language))
 
     # parse results (write :language and !engine back to result string)
     results = []
     for result in raw_results:
-        query.changeSearchQuery(result)
+        raw_text_query.changeSearchQuery(result)
 
         # add parsed result
-        results.append(query.getFullQuery())
+        results.append(raw_text_query.getFullQuery())
 
     # return autocompleter results
-    if request_data.get('format') == 'x-suggestions':
-        return Response(json.dumps([query.query, results]),
+    if request.form.get('format') == 'x-suggestions':
+        return Response(json.dumps([raw_text_query.query, results]),
                         mimetype='application/json')
 
     return Response(json.dumps(results),
@@ -548,7 +591,7 @@ def preferences():
         try:
             request.preferences.parse_form(request.form)
         except ValidationException:
-            # TODO use flash feature of flask
+            request.errors.append(gettext('Invalid settings, please edit your preferences'))
             return resp
         return request.preferences.save(resp)
 
@@ -569,6 +612,8 @@ def preferences():
             if e.timeout > settings['outgoing']['request_timeout']:
                 stats[e.name]['warn_timeout'] = True
 
+    # get first element [0], the engine time,
+    # and then the second element [1] : the time (the first one is the label)
     for engine_stat in get_engines_stats()[0][1]:
         stats[engine_stat.get('name')]['time'] = round(engine_stat.get('avg'), 3)
         if engine_stat.get('avg') > settings['outgoing']['request_timeout']:
@@ -578,18 +623,18 @@ def preferences():
     return render('preferences.html',
                   locales=settings['locales'],
                   current_locale=get_locale(),
-                  current_language=lang,
                   image_proxy=image_proxy,
-                  language_codes=language_codes,
                   engines_by_category=categories,
                   stats=stats,
+                  answerers=[{'info': a.self_info(), 'keywords': a.keywords} for a in answerers],
                   disabled_engines=disabled_engines,
                   autocomplete_backends=autocomplete_backends,
                   shortcuts={y: x for x, y in engine_shortcuts.items()},
                   themes=themes,
                   plugins=plugins,
                   allowed_plugins=allowed_plugins,
-                  theme=get_current_theme_name())
+                  theme=get_current_theme_name(),
+                  preferences=True)
 
 
 @app.route('/image_proxy', methods=['GET'])
@@ -599,7 +644,7 @@ def image_proxy():
     if not url:
         return '', 400
 
-    h = hashlib.sha256(url + settings['server']['secret_key'].encode('utf-8')).hexdigest()
+    h = hmac.new(settings['server']['secret_key'], url, hashlib.sha256).hexdigest()
 
     if h != request.args.get('h'):
         return '', 400
@@ -657,6 +702,7 @@ Allow: /
 Allow: /about
 Disallow: /stats
 Disallow: /preferences
+Disallow: /*?*q=*
 """, mimetype='text/plain')
 
 
@@ -706,7 +752,16 @@ def config():
                     'engines': [{'name': engine_name,
                                  'categories': engine.categories,
                                  'shortcut': engine.shortcut,
-                                 'enabled': not engine.disabled}
+                                 'enabled': not engine.disabled,
+                                 'paging': engine.paging,
+                                 'language_support': engine.language_support,
+                                 'supported_languages':
+                                 engine.supported_languages.keys()
+                                 if isinstance(engine.supported_languages, dict)
+                                 else engine.supported_languages,
+                                 'safesearch': engine.safesearch,
+                                 'time_range_support': engine.time_range_support,
+                                 'timeout': engine.timeout}
                                 for engine_name, engine in engines.items()],
                     'plugins': [{'name': plugin.name,
                                  'enabled': plugin.default_on}
@@ -716,18 +771,19 @@ def config():
                     'default_locale': settings['ui']['default_locale'],
                     'autocomplete': settings['search']['autocomplete'],
                     'safe_search': settings['search']['safe_search'],
-                    'default_theme': settings['ui']['default_theme']})
+                    'default_theme': settings['ui']['default_theme'],
+                    'version': VERSION_STRING})
 
 
 @app.errorhandler(404)
 def page_not_found(e):
-    return render('404.html')
+    return render('404.html'), 404
 
 
 def run():
     app.run(
-        debug=settings['general']['debug'],
-        use_debugger=settings['general']['debug'],
+        debug=searx_debug,
+        use_debugger=searx_debug,
         port=settings['server']['port'],
         host=settings['server']['bind_address'],
         threaded=True

@@ -14,7 +14,6 @@
 """
 
 from urllib import urlencode
-from cgi import escape
 from lxml import html
 from searx.engines.xpath import extract_text
 
@@ -22,6 +21,7 @@ from searx.engines.xpath import extract_text
 categories = ['general']
 paging = True
 language_support = True
+supported_languages_url = 'https://www.bing.com/account/general'
 
 # search-url
 base_url = 'https://www.bing.com/'
@@ -32,17 +32,16 @@ search_string = 'search?{query}&first={offset}'
 def request(query, params):
     offset = (params['pageno'] - 1) * 10 + 1
 
-    if params['language'] == 'all':
-        language = 'en-US'
+    if params['language'] != 'all':
+        lang = params['language'].split('-')[0].upper()
     else:
-        language = params['language'].replace('_', '-')
+        lang = 'EN'
+
+    query = u'language:{} {}'.format(lang, query.decode('utf-8')).encode('utf-8')
 
     search_path = search_string.format(
-        query=urlencode({'q': query, 'setmkt': language}),
+        query=urlencode({'q': query}),
         offset=offset)
-
-    params['cookies']['SRCHHPGUSR'] = \
-        'NEWWND=0&NRSLT=-1&SRCHLANG=' + language.split('-')[0]
 
     params['url'] = base_url + search_path
     return params
@@ -65,7 +64,7 @@ def response(resp):
         link = result.xpath('.//h3/a')[0]
         url = link.attrib.get('href')
         title = extract_text(link)
-        content = escape(extract_text(result.xpath('.//p')))
+        content = extract_text(result.xpath('.//p'))
 
         # append result
         results.append({'url': url,
@@ -77,7 +76,7 @@ def response(resp):
         link = result.xpath('.//h2/a')[0]
         url = link.attrib.get('href')
         title = extract_text(link)
-        content = escape(extract_text(result.xpath('.//p')))
+        content = extract_text(result.xpath('.//p'))
 
         # append result
         results.append({'url': url,
@@ -86,3 +85,15 @@ def response(resp):
 
     # return results
     return results
+
+
+# get supported languages from their site
+def _fetch_supported_languages(resp):
+    supported_languages = []
+    dom = html.fromstring(resp.text)
+    options = dom.xpath('//div[@id="limit-languages"]//input')
+    for option in options:
+        code = option.xpath('./@id')[0].replace('_', '-')
+        supported_languages.append(code)
+
+    return supported_languages

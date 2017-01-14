@@ -19,16 +19,23 @@ from urllib import urlencode
 from lxml import html
 from json import loads
 import re
+from searx.engines.bing import _fetch_supported_languages, supported_languages_url
 
 # engine dependent config
 categories = ['images']
 paging = True
 safesearch = True
+time_range_support = True
 
 # search-url
 base_url = 'https://www.bing.com/'
 search_string = 'images/search?{query}&count=10&first={offset}'
+time_range_string = '&qft=+filterui:age-lt{interval}'
 thumb_url = "https://www.bing.com/th?id={ihk}"
+time_range_dict = {'day': '1440',
+                   'week': '10080',
+                   'month': '43200',
+                   'year': '525600'}
 
 # safesearch definitions
 safesearch_types = {2: 'STRICT',
@@ -47,7 +54,7 @@ def request(query, params):
     if params['language'] == 'all':
         language = 'en-US'
     else:
-        language = params['language'].replace('_', '-')
+        language = params['language']
 
     search_path = search_string.format(
         query=urlencode({'q': query}),
@@ -58,6 +65,8 @@ def request(query, params):
         '&ADLT=' + safesearch_types.get(params['safesearch'], 'DEMOTE')
 
     params['url'] = base_url + search_path
+    if params['time_range'] in time_range_dict:
+        params['url'] += time_range_string.format(interval=time_range_dict[params['time_range']])
 
     return params
 

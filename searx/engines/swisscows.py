@@ -10,10 +10,10 @@
  @parse       url, title, content
 """
 
-from cgi import escape
 from json import loads
 from urllib import urlencode, unquote
 import re
+from lxml.html import fromstring
 
 # engine dependent config
 categories = ['general', 'images']
@@ -23,6 +23,8 @@ language_support = True
 # search-url
 base_url = 'https://swisscows.ch/'
 search_string = '?{query}&page={page}'
+
+supported_languages_url = base_url
 
 # regex
 regex_json = re.compile(r'initialData: {"Request":(.|\n)*},\s*environment')
@@ -36,9 +38,11 @@ def request(query, params):
     if params['language'] == 'all':
         ui_language = 'browser'
         region = 'browser'
+    elif params['language'].split('-')[0] == 'no':
+        region = 'nb-NO'
     else:
-        region = params['language'].replace('_', '-')
-        ui_language = params['language'].split('_')[0]
+        region = params['language']
+        ui_language = params['language'].split('-')[0]
 
     search_path = search_string.format(
         query=urlencode({'query': query,
@@ -78,7 +82,7 @@ def response(resp):
 
             # append result
             results.append({'url': result['SourceUrl'],
-                            'title': escape(result['Title']),
+                            'title': result['Title'],
                             'content': '',
                             'img_src': img_url,
                             'template': 'images.html'})
@@ -90,8 +94,8 @@ def response(resp):
 
             # append result
             results.append({'url': result_url,
-                            'title': escape(result_title),
-                            'content': escape(result_content)})
+                            'title': result_title,
+                            'content': result_content})
 
     # parse images
     for result in json.get('Images', []):
@@ -100,10 +104,22 @@ def response(resp):
 
         # append result
         results.append({'url': result['SourceUrl'],
-                        'title': escape(result['Title']),
+                        'title': result['Title'],
                         'content': '',
                         'img_src': img_url,
                         'template': 'images.html'})
 
     # return results
     return results
+
+
+# get supported languages from their site
+def _fetch_supported_languages(resp):
+    supported_languages = []
+    dom = fromstring(resp.text)
+    options = dom.xpath('//div[@id="regions-popup"]//ul/li/a')
+    for option in options:
+        code = option.xpath('./@data-val')[0]
+        supported_languages.append(code)
+
+    return supported_languages

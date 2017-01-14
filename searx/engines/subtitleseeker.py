@@ -10,7 +10,6 @@
  @parse       url, title, content
 """
 
-from cgi import escape
 from urllib import quote_plus
 from lxml import html
 from searx.languages import language_codes
@@ -23,7 +22,7 @@ language = ""
 
 # search-url
 url = 'http://www.subtitleseeker.com/'
-search_url = url + 'search/TITLES/{query}&p={pageno}'
+search_url = url + 'search/TITLES/{query}?p={pageno}'
 
 # specific xpath variables
 results_xpath = '//div[@class="boxRows"]'
@@ -44,10 +43,16 @@ def response(resp):
 
     search_lang = ""
 
-    if resp.search_params['language'] != 'all':
-        search_lang = [lc[1]
+    # dirty fix for languages named differenly in their site
+    if resp.search_params['language'][:2] == 'fa':
+        search_lang = 'Farsi'
+    elif resp.search_params['language'] == 'pt-BR':
+        search_lang = 'Brazilian'
+    elif resp.search_params['language'] != 'all':
+        search_lang = [lc[3]
                        for lc in language_codes
-                       if lc[0][:2] == resp.search_params['language'].split('_')[0]][0]
+                       if lc[0].split('-')[0] == resp.search_params['language'].split('-')[0]]
+        search_lang = search_lang[0].split(' (')[0]
 
     # parse results
     for result in dom.xpath(results_xpath):
@@ -59,7 +64,7 @@ def response(resp):
         elif search_lang:
             href = href + search_lang + '/'
 
-        title = escape(extract_text(link))
+        title = extract_text(link)
 
         content = extract_text(result.xpath('.//div[contains(@class,"red")]'))
         content = content + " - "
@@ -75,7 +80,7 @@ def response(resp):
         # append result
         results.append({'url': href,
                         'title': title,
-                        'content': escape(content)})
+                        'content': content})
 
     # return results
     return results

@@ -6,7 +6,10 @@ import re
 from babel.dates import format_date
 from codecs import getincrementalencoder
 from HTMLParser import HTMLParser
+from imp import load_source
+from os.path import splitext, join
 from random import choice
+import sys
 
 from searx.version import VERSION_STRING
 from searx.languages import language_codes
@@ -252,10 +255,25 @@ def get_torrent_size(filesize, filesize_multiplier):
             filesize = int(filesize * 1024 * 1024)
         elif filesize_multiplier == 'KB':
             filesize = int(filesize * 1024)
+        elif filesize_multiplier == 'TiB':
+            filesize = int(filesize * 1000 * 1000 * 1000 * 1000)
+        elif filesize_multiplier == 'GiB':
+            filesize = int(filesize * 1000 * 1000 * 1000)
+        elif filesize_multiplier == 'MiB':
+            filesize = int(filesize * 1000 * 1000)
+        elif filesize_multiplier == 'KiB':
+            filesize = int(filesize * 1000)
     except:
         filesize = None
 
     return filesize
+
+
+def convert_str_to_int(number_str):
+    if number_str.isdigit():
+        return int(number_str)
+    else:
+        return 0
 
 
 def is_valid_lang(lang):
@@ -270,3 +288,13 @@ def is_valid_lang(lang):
             if l[1].lower() == lang.lower():
                 return (True, l[0][:2], l[1].lower())
         return False
+
+
+def load_module(filename, module_dir):
+    modname = splitext(filename)[0]
+    if modname in sys.modules:
+        del sys.modules[modname]
+    filepath = join(module_dir, filename)
+    module = load_source(modname, filepath)
+    module.name = modname
+    return module

@@ -16,13 +16,15 @@ along with searx. If not, see < http://www.gnu.org/licenses/ >.
 (C) 2013- by Adam Tauber, <asciimoo@gmail.com>
 '''
 
-from os.path import realpath, dirname, splitext, join
+from os.path import realpath, dirname
 import sys
-from imp import load_source
 from flask_babel import gettext
 from operator import itemgetter
+from json import loads
+from requests import get
 from searx import settings
 from searx import logger
+from searx.utils import load_module
 
 
 logger = logger.getChild('engines')
@@ -33,10 +35,13 @@ engines = {}
 
 categories = {'general': []}
 
+languages = loads(open(engine_dir + '/../data/engines_languages.json').read())
+
 engine_shortcuts = {}
 engine_default_args = {'paging': False,
                        'categories': ['general'],
                        'language_support': True,
+                       'supported_languages': [],
                        'safesearch': False,
                        'timeout': settings['outgoing']['request_timeout'],
                        'shortcut': '-',
@@ -46,22 +51,18 @@ engine_default_args = {'paging': False,
                        'time_range_support': False}
 
 
-def load_module(filename):
-    modname = splitext(filename)[0]
-    if modname in sys.modules:
-        del sys.modules[modname]
-    filepath = join(engine_dir, filename)
-    module = load_source(modname, filepath)
-    module.name = modname
-    return module
-
-
 def load_engine(engine_data):
-    engine_name = engine_data['engine']
+
+    if '_' in engine_data['name']:
+        logger.error('Engine name conains underscore: "{}"'.format(engine_data['name']))
+        sys.exit(1)
+
+    engine_module = engine_data['engine']
+
     try:
-        engine = load_module(engine_name + '.py')
+        engine = load_module(engine_module + '.py', engine_dir)
     except:
-        logger.exception('Cannot load engine "{}"'.format(engine_name))
+        logger.exception('Cannot load engine "{}"'.format(engine_module))
         return None
 
     for param_name in engine_data:
@@ -89,10 +90,22 @@ def load_engine(engine_data):
                          .format(engine.name, engine_attr))
             sys.exit(1)
 
+    # assign supported languages from json file
+    if engine_data['name'] in languages:
+        setattr(engine, 'supported_languages', languages[engine_data['name']])
+
+    # assign language fetching method if auxiliary method exists
+    if hasattr(engine, '_fetch_supported_languages'):
+        setattr(engine, 'fetch_supported_languages',
+                lambda: engine._fetch_supported_languages(get(engine.supported_languages_url)))
+
     engine.stats = {
         'result_count': 0,
         'search_count': 0,
         'page_load_time': 0,
+        'page_load_count': 0,
+        'engine_time': 0,
+        'engine_time_count': 0,
         'score_count': 0,
         'errors': 0
     }
@@ -109,32 +122,56 @@ def load_engine(engine_data):
     return engine
 
 
+def to_percentage(stats, maxvalue):
+    for engine_stat in stats:
+        if maxvalue:
+            engine_stat['percentage'] = int(engine_stat['avg'] / maxvalue * 100)
+        else:
+            engine_stat['percentage'] = 0
+    return stats
+
+
 def get_engines_stats():
     # TODO refactor
     pageloads = []
+    engine_times = []
     results = []
     scores = []
     errors = []
     scores_per_result = []
 
-    max_pageload = max_results = max_score = max_errors = max_score_per_result = 0  # noqa
+    max_pageload = max_engine_times = max_results = max_score = max_errors = max_score_per_result = 0  # noqa
     for engine in engines.values():
         if engine.stats['search_count'] == 0:
             continue
         results_num = \
             engine.stats['result_count'] / float(engine.stats['search_count'])
-        load_times = engine.stats['page_load_time'] / float(engine.stats['search_count'])  # noqa
+
+        if engine.stats['page_load_count'] != 0:
+            load_times = engine.stats['page_load_time'] / float(engine.stats['page_load_count'])  # noqa
+        else:
+            load_times = 0
+
+        if engine.stats['engine_time_count'] != 0:
+            this_engine_time = engine.stats['engine_time'] / float(engine.stats['engine_time_count'])  # noqa
+        else:
+            this_engine_time = 0
+
         if results_num:
             score = engine.stats['score_count'] / float(engine.stats['search_count'])  # noqa
             score_per_result = score / results_num
         else:
             score = score_per_result = 0.0
-        max_results = max(results_num, max_results)
+
         max_pageload = max(load_times, max_pageload)
+        max_engine_times = max(this_engine_time, max_engine_times)
+        max_results = max(results_num, max_results)
         max_score = max(score, max_score)
         max_score_per_result = max(score_per_result, max_score_per_result)
         max_errors = max(max_errors, engine.stats['errors'])
+
         pageloads.append({'avg': load_times, 'name': engine.name})
+        engine_times.append({'avg': this_engine_time, 'name': engine.name})
         results.append({'avg': results_num, 'name': engine.name})
         scores.append({'avg': score, 'name': engine.name})
         errors.append({'avg': engine.stats['errors'], 'name': engine.name})
@@ -143,38 +180,18 @@ def get_engines_stats():
             'name': engine.name
         })
 
-    for engine in pageloads:
-        if max_pageload:
-            engine['percentage'] = int(engine['avg'] / max_pageload * 100)
-        else:
-            engine['percentage'] = 0
-
-    for engine in results:
-        if max_results:
-            engine['percentage'] = int(engine['avg'] / max_results * 100)
-        else:
-            engine['percentage'] = 0
-
-    for engine in scores:
-        if max_score:
-            engine['percentage'] = int(engine['avg'] / max_score * 100)
-        else:
-            engine['percentage'] = 0
-
-    for engine in scores_per_result:
-        if max_score_per_result:
-            engine['percentage'] = int(engine['avg']
-                                       / max_score_per_result * 100)
-        else:
-            engine['percentage'] = 0
-
-    for engine in errors:
-        if max_errors:
-            engine['percentage'] = int(float(engine['avg']) / max_errors * 100)
-        else:
-            engine['percentage'] = 0
+    pageloads = to_percentage(pageloads, max_pageload)
+    engine_times = to_percentage(engine_times, max_engine_times)
+    results = to_percentage(results, max_results)
+    scores = to_percentage(scores, max_score)
+    scores_per_result = to_percentage(scores_per_result, max_score_per_result)
+    erros = to_percentage(errors, max_errors)
 
     return [
+        (
+            gettext('Engine time (sec)'),
+            sorted(engine_times, key=itemgetter('avg'))
+        ),
         (
             gettext('Page loads (sec)'),
             sorted(pageloads, key=itemgetter('avg'))
@@ -198,11 +215,7 @@ def get_engines_stats():
     ]
 
 
-if 'engines' not in settings or not settings['engines']:
-    logger.error('No engines found. Edit your settings.yml')
-    exit(2)
-
-for engine_data in settings['engines']:
-    engine = load_engine(engine_data)
-    if engine is not None:
+def initialize_engines(engine_list):
+    for engine_data in engine_list:
+        engine = load_engine(engine_data)
         engines[engine.name] = engine

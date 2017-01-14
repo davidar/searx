@@ -17,15 +17,21 @@ from datetime import datetime
 from dateutil import parser
 from lxml import etree
 from searx.utils import list_get
+from searx.engines.bing import _fetch_supported_languages, supported_languages_url
 
 # engine dependent config
 categories = ['news']
 paging = True
 language_support = True
+time_range_support = True
 
 # search-url
 base_url = 'https://www.bing.com/'
 search_string = 'news/search?{query}&first={offset}&format=RSS'
+search_string_with_time = 'news/search?{query}&first={offset}&qft=interval%3d"{interval}"&format=RSS'
+time_range_dict = {'day': '7',
+                   'week': '8',
+                   'month': '9'}
 
 
 # remove click
@@ -46,20 +52,32 @@ def image_url_cleanup(url_string):
     return url_string
 
 
+def _get_url(query, language, offset, time_range):
+    if time_range in time_range_dict:
+        search_path = search_string_with_time.format(
+            query=urlencode({'q': query, 'setmkt': language}),
+            offset=offset,
+            interval=time_range_dict[time_range])
+    else:
+        search_path = search_string.format(
+            query=urlencode({'q': query, 'setmkt': language}),
+            offset=offset)
+    return base_url + search_path
+
+
 # do search-request
 def request(query, params):
+    if params['time_range'] and params['time_range'] not in time_range_dict:
+        return params
+
     offset = (params['pageno'] - 1) * 10 + 1
 
     if params['language'] == 'all':
         language = 'en-US'
     else:
-        language = params['language'].replace('_', '-')
+        language = params['language']
 
-    search_path = search_string.format(
-        query=urlencode({'q': query, 'setmkt': language}),
-        offset=offset)
-
-    params['url'] = base_url + search_path
+    params['url'] = _get_url(query, language, offset, params['time_range'])
 
     return params
 

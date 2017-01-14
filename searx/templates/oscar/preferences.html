@@ -1,11 +1,6 @@
 {% from 'oscar/macros.html' import preferences_item_header, preferences_item_header_rtl, preferences_item_footer, preferences_item_footer_rtl, checkbox_toggle %}
 {% extends "oscar/base.html" %}
 {% block title %}{{ _('preferences') }} - {% endblock %}
-{% block site_alert_warning_nojs %}
-<noscript>
-    {% include 'oscar/messages/js_disabled.html' %}
-</noscript>
-{% endblock %}
 {% block content %}
 <div>
 
@@ -17,6 +12,7 @@
           <li class="active"><a href="#tab_general" role="tab" data-toggle="tab">{{ _('General') }}</a></li>
           <li><a href="#tab_engine" role="tab" data-toggle="tab">{{ _('Engines') }}</a></li>
           <li><a href="#tab_plugins" role="tab" data-toggle="tab">{{ _('Plugins') }}</a></li>
+          {% if answerers %}<li><a href="#tab_answerers" role="tab" data-toggle="tab">{{ _('Answerers') }}</a></li>{% endif %}
           <li><a href="#tab_cookies" role="tab" data-toggle="tab">{{ _('Cookies') }}</a></li>
         </ul>
 
@@ -44,12 +40,7 @@
                     {% set language_label = _('Search language') %}
                     {% set language_info = _('What language do you prefer for search?') %}
                     {{ preferences_item_header(language_info, language_label, rtl) }}
-                        <select name='language'>
-                            <option value="all" {% if current_language == 'all' %}selected="selected"{% endif %}>{{ _('Automatic') }}</option>
-                            {% for lang_id,lang_name,country_name in language_codes | sort(attribute=1) %}
-                            <option value="{{ lang_id }}" {% if lang_id == current_language %}selected="selected"{% endif %}>{{ lang_name }} ({{ country_name }}) - {{ lang_id }}</option>
-                            {% endfor %}
-                        </select>
+						{% include 'oscar/languages.html' %}
                     {{ preferences_item_footer(language_info, language_label, rtl) }}
 
                     {% set locale_label = _('Interface language') %}
@@ -156,13 +147,16 @@
 				    <th>{{ _("Allow") }}</th>
 				    <th>{{ _("Engine name") }}</th>
 				    <th>{{ _("Shortcut") }}</th>
+				    <th>{{ _("Supports selected language") }}</th>
 				    <th>{{ _("SafeSearch") }}</th>
+				    <th>{{ _("Time range") }}</th>
 				    <th>{{ _("Avg. time") }}</th>
 				    <th>{{ _("Max time") }}</th>
                                     {% else %}
 				    <th>{{ _("Max time") }}</th>
 				    <th>{{ _("Avg. time") }}</th>
 				    <th>{{ _("SafeSearch") }}</th>
+				    <th>{{ _("Supports selected language") }}</th>
 				    <th>{{ _("Shortcut") }}</th>
 				    <th>{{ _("Engine name") }}</th>
 				    <th>{{ _("Allow") }}</th>
@@ -177,13 +171,16 @@
                                     </td>
                                     <th>{{ search_engine.name }}</th>
 				    <td>{{ shortcuts[search_engine.name] }}</td>
+				    <td><input type="checkbox" {{ "checked" if current_language == 'all' or current_language in search_engine.supported_languages or current_language.split('-')[0] in search_engine.supported_languages else ""}} readonly="readonly" disabled="disabled"></td>
 				    <td><input type="checkbox" {{ "checked" if search_engine.safesearch==True else ""}} readonly="readonly" disabled="disabled"></td>
+				    <td><input type="checkbox" {{ "checked" if search_engine.time_range_support==True else ""}} readonly="readonly" disabled="disabled"></td>
 				    <td class="{{ 'danger' if stats[search_engine.name]['warn_time'] else '' }}">{{ 'N/A' if stats[search_engine.name].time==None else stats[search_engine.name].time }}</td>
 				    <td class="{{ 'danger' if stats[search_engine.name]['warn_timeout'] else '' }}">{{ search_engine.timeout }}</td>
                                     {% else %}
 				    <td class="{{ 'danger' if stats[search_engine.name]['warn_timeout'] else '' }}">{{ search_engine.timeout }}</td>
 				    <td class="{{ 'danger' if stats[search_engine.name]['warn_time'] else '' }}">{{ 'N/A' if stats[search_engine.name].time==None else stats[search_engine.name].time }}</td>
 				    <td><input type="checkbox" {{ "checked" if search_engine.safesearch==True else ""}} readonly="readonly" disabled="disabled"></td>
+				    <td><input type="checkbox" {{ "checked" if current_language == 'all' or current_language in search_engine.supported_languages or current_language.split('-')[0] in search_engine.supported_languages else ""}} readonly="readonly" disabled="disabled"></td>
 				    <td>{{ shortcuts[search_engine.name] }}</td>
                                     <th>{{ search_engine.name }}</th>
                                     <td class="onoff-checkbox">
@@ -224,6 +221,34 @@
                     </div>
                 </fieldset>
             </div>
+
+            {% if answerers %}
+            <div class="tab-pane active_if_nojs" id="tab_answerers">
+                <noscript>
+                    <h3>{{ _('Answerers') }}</h3>
+                </noscript>
+                <p class="text-muted" style="margin:20px 0;">
+                    {{ _('This is the list of searx\'s instant answering modules.') }}
+                </p>
+                <table class="table table-striped">
+                    <tr>
+                        <th class="text-muted">{{ _('Name') }}</th>
+                        <th class="text-muted">{{ _('Keywords') }}</th>
+                        <th class="text-muted">{{ _('Description') }}</th>
+                        <th class="text-muted">{{ _('Examples') }}</th>
+                    </tr>
+
+                    {% for answerer in answerers %}
+                    <tr>
+                        <td class="text-muted">{{ answerer.info.name }}</td>
+                        <td class="text-muted">{{ answerer.keywords|join(', ') }}</td>
+                        <td class="text-muted">{{ answerer.info.description }}</td>
+                        <td class="text-muted">{{ answerer.info.examples|join(', ') }}</td>
+                    </tr>
+                    {% endfor %}
+                </table>
+            </div>
+            {% endif %}
 
             <div class="tab-pane active_if_nojs" id="tab_cookies">
                 <noscript>

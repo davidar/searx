@@ -46,6 +46,13 @@ class TestYahooEngine(SearxTestCase):
         self.assertIn('en', params['cookies']['sB'])
         self.assertIn('en', params['url'])
 
+    def test_no_url_in_request_year_time_range(self):
+        dicto = defaultdict(dict)
+        query = 'test_query'
+        dicto['time_range'] = 'year'
+        params = yahoo.request(query, dicto)
+        self.assertEqual({}, params['url'])
+
     def test_response(self):
         self.assertRaises(AttributeError, yahoo.response, None)
         self.assertRaises(AttributeError, yahoo.response, [])
@@ -140,3 +147,33 @@ class TestYahooEngine(SearxTestCase):
         results = yahoo.response(response)
         self.assertEqual(type(results), list)
         self.assertEqual(len(results), 0)
+
+    def test_fetch_supported_languages(self):
+        html = """<html></html>"""
+        response = mock.Mock(text=html)
+        results = yahoo._fetch_supported_languages(response)
+        self.assertEqual(type(results), list)
+        self.assertEqual(len(results), 0)
+
+        html = """
+        <html>
+            <div>
+                <div id="yschlang">
+                    <span>
+                        <label><input value="lang_ar"></input></label>
+                    </span>
+                    <span>
+                        <label><input value="lang_zh_chs"></input></label>
+                        <label><input value="lang_zh_cht"></input></label>
+                    </span>
+                </div>
+            </div>
+        </html>
+        """
+        response = mock.Mock(text=html)
+        languages = yahoo._fetch_supported_languages(response)
+        self.assertEqual(type(languages), list)
+        self.assertEqual(len(languages), 3)
+        self.assertIn('ar', languages)
+        self.assertIn('zh-chs', languages)
+        self.assertIn('zh-cht', languages)

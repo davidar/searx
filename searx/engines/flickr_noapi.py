@@ -14,6 +14,7 @@
 
 from urllib import urlencode
 from json import loads
+from time import time
 import re
 from searx.engines import logger
 
@@ -24,21 +25,32 @@ categories = ['images']
 
 url = 'https://www.flickr.com/'
 search_url = url + 'search?{query}&page={page}'
+time_range_url = '&min_upload_date={start}&max_upload_date={end}'
 photo_url = 'https://www.flickr.com/photos/{userid}/{photoid}'
 regex = re.compile(r"\"search-photos-lite-models\",\"photos\":(.*}),\"totalItems\":", re.DOTALL)
 image_sizes = ('o', 'k', 'h', 'b', 'c', 'z', 'n', 'm', 't', 'q', 's')
 
 paging = True
+time_range_support = True
+time_range_dict = {'day': 60 * 60 * 24,
+                   'week': 60 * 60 * 24 * 7,
+                   'month': 60 * 60 * 24 * 7 * 4,
+                   'year': 60 * 60 * 24 * 7 * 52}
 
 
 def build_flickr_url(user_id, photo_id):
     return photo_url.format(userid=user_id, photoid=photo_id)
 
 
-def request(query, params):
-    params['url'] = search_url.format(query=urlencode({'text': query}),
-                                      page=params['pageno'])
+def _get_time_range_url(time_range):
+    if time_range in time_range_dict:
+        return time_range_url.format(start=time(), end=str(int(time()) - time_range_dict[time_range]))
+    return ''
 
+
+def request(query, params):
+    params['url'] = (search_url.format(query=urlencode({'text': query}), page=params['pageno'])
+                     + _get_time_range_url(params['time_range']))
     return params
 
 
@@ -91,16 +103,15 @@ def response(resp):
 
         title = photo.get('title', '')
 
-        content = '<span class="photo-author">' +\
-                  photo['username'] +\
-                  '</span><br />'
+        author = photo['username']
 
         # append result
         results.append({'url': url,
                         'title': title,
                         'img_src': img_src,
                         'thumbnail_src': thumbnail_src,
-                        'content': content,
+                        'content': '',
+                        'author': author,
                         'template': 'images.html'})
 
     return results
